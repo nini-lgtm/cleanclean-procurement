@@ -1838,4 +1838,34 @@ function filterPR(){
   });
 })();
 </script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var btn = document.getElementById('loginBtn') || document.querySelector('.login-btn');
+  var pwd = document.getElementById('loginPwd');
+  var err = document.getElementById('loginErr');
+  if(!btn || !pwd) return;
+  async function doLogin(){
+    try{
+      var v = pwd.value;
+      if(!v){ err.textContent="請輸入密碼"; return; }
+      var enc=new TextEncoder();
+      var buf=await crypto.subtle.digest("SHA-256", enc.encode(v));
+      var h=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+      if(h==="35f0fe053efba23746502e427f547856d115174e27c4c1e564f8e050a77f328c"){
+        document.getElementById("loginOverlay").style.display="none";
+        document.querySelector(".container").style.display="block";
+      } else {
+        pwd.classList.add("shake");
+        err.textContent="密碼錯誤，請重新輸入";
+        setTimeout(function(){pwd.classList.remove("shake");},400);
+        pwd.value=""; pwd.focus();
+      }
+    } catch(e){
+      err.textContent="登入異常："+e.message;
+    }
+  }
+  btn.addEventListener("click", doLogin);
+  pwd.addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+});
+</script>
 </div></body></html>
