@@ -85,7 +85,7 @@ tr.u-critical{background:var(--red-bg)}tr.u-critical:hover{background:var(--red-
 </div>
 <div class="sub-tabs" id="sub-g-overview" style="display:none"></div>
 <div class="sub-tabs" id="sub-g-purchase" style="display:none"><div class="sub-tab active" data-tab="fg">🏭 成品叫貨<span class="badge">8</span></div><div class="sub-tab" data-tab="mat">🔩 物料急補<span class="badge">59</span></div><div class="sub-tab" data-tab="intransit">📦 在途追蹤<span class="badge">97</span></div><div class="sub-tab" data-tab="vendor">🏢 供應商彙總</div><div class="sub-tab" data-tab="supplier">📈 供應商績效</div><div class="sub-tab" data-tab="pohist">📜 採購歷史</div><div class="sub-tab" data-tab="vinfo">📇 供應商資訊</div><div class="sub-tab" data-tab="prod">📚 產品資料庫</div><div class="sub-tab" data-tab="bom">🧪 成品成本表</div><div class="sub-tab" data-tab="recv">📦 進貨明細</div><div class="sub-tab" data-tab="logic">📐 採購邏輯</div></div>
-<div class="sub-tabs" id="sub-g-other" style="display:none"><div class="sub-tab active" data-tab="demand">📋 需求預登</div><div class="sub-tab" data-tab="pr">🎁 公關品追蹤</div><div class="sub-tab" data-tab="reports">📋 報表說明</div></div>
+<div class="sub-tabs" id="sub-g-other" style="display:none"><div class="sub-tab active" data-tab="demand">📋 需求預登</div><div class="sub-tab" data-tab="reorder">🛒 建議下單</div><div class="sub-tab" data-tab="demandgap">📊 需求缺口</div><div class="sub-tab" data-tab="pr">🎁 公關品追蹤</div><div class="sub-tab" data-tab="reports">📋 報表說明</div></div>
 <div class="sub-tabs" id="sub-g-hist" style="display:none"></div>
 <div class="tab-content active" id="tab-overview">
 <div class="section"><div class="section-title">成品庫存總覽 — 依產品分類</div><div class="filter-bar"><select id="ov-urg" onchange="filterOvAcc()" style="min-width:100px"><option value="all">全部狀態</option><option value="u-critical">🚨緊急</option><option value="u-warning">⚠偏低</option><option value="u-success">✅安全</option><option value="u-info">📦充足</option></select><select id="ov-cat" onchange="filterOvAcc()"><option value="all">全部分類</option><option value="剋菌液">🧪 剋菌液</option><option value="清潔皂">🫧 清潔皂</option><option value="家用清潔">🏠 家用清潔</option><option value="沐浴系列">🛁 沐浴系列</option><option value="個人護理">🌿 個人護理</option><option value="其他">📦 其他</option></select><input type="text" id="ov-s" placeholder="搜尋產品…" oninput="filterOvAcc()"><span class="count" id="ov-cnt"></span></div><div id="ov-acc">
@@ -148,6 +148,61 @@ tr.u-critical{background:var(--red-bg)}tr.u-critical:hover{background:var(--red-
 <tr class="u-medium"><td class="nowrap"><span style="background:#FEF3C7;color:#B45309;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">⚠ 偏低</span></td><td class="nowrap">4713233984769</td><td>胺基酸沐浴露 療癒花語(隨身包)8mL <span id="ov-os-4713233984769"></span></td><td>D</td><td class="num">14,827</td><td class="num">2.8</td><td class="num">5,299</td><td class="num">176.7</td><td class="num">132,468</td></tr>
 </tbody></table></div></div>
 </div></div>
+</div>
+<div class="tab-content" id="tab-reorder">
+<div class="section">
+  <div class="section-title">🛒 建議下單清單</div>
+  <div class="subtitle">庫存低於安全水位的品項，依緊急程度排序</div>
+  <div id="reorder-cards" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
+  <div class="filter-bar" style="margin-bottom:12px">
+    <input type="text" id="ro-s" placeholder="搜尋品名、廠商…" oninput="filterReorder()" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;">
+    <select id="ro-f" onchange="filterReorder()" style="padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">
+      <option value="all">全部狀態</option><option value="out">🚨 缺貨</option><option value="critical">⚠ 緊急</option><option value="low">📉 偏低</option>
+    </select>
+    <select id="ro-v" onchange="filterReorder()" style="padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px">
+      <option value="all">全部廠商</option>
+    </select>
+    <span id="ro-c" style="font-size:12px;color:#94A3B8"></span>
+  </div>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px" id="ro-table">
+      <thead><tr style="background:linear-gradient(180deg,#FFF7ED,#FFEDD5)">
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">狀態</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">品名</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">廠商</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">在庫</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">安全量</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">建議補量</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">月均銷</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">前置天數</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">單價</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">預估金額</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0">最近進貨</th>
+      </tr></thead>
+      <tbody id="ro-tbody"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+<div class="tab-content" id="tab-demandgap">
+<div class="section">
+  <div class="section-title">📊 需求缺口分析</div>
+  <div class="subtitle">公關品 / 活動需求 vs 現有庫存，標示不足品項</div>
+  <div id="dg-cards" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px" id="dg-table">
+      <thead><tr style="background:linear-gradient(180deg,#EFF6FF,#DBEAFE)">
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">狀態</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">品名</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">需求量</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">在庫</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:right">缺口</th>
+        <th style="padding:10px 8px;border:1px solid #E2E8F0;text-align:left">相關活動</th>
+      </tr></thead>
+      <tbody id="dg-tbody"></tbody>
+    </table>
+  </div>
+</div>
 </div>
 <div class="tab-content" id="tab-pr">
   <div class="section">
@@ -1776,7 +1831,98 @@ function filterPR(){
   document.getElementById('pr-c').textContent='顯示'+n+'/'+rows.length+'筆';
 }
 
+// ===== 建議下單 + 需求缺口 =====
+// <!--REORDER_DATA_START-->
+var _reorderData = [{"sku": "E00-008", "name": "洗衣精(共用)  貼紙加工費*1", "stock": 0, "safety": 24493, "monthly": 16328.5, "gap": 24493, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 55, "recv_last_date": "2026/03/18", "buy_cost": 2.0, "est_cost": 48986.0}, {"sku": "E05-001", "name": "洗衣精(補) 內料*1", "stock": 0, "safety": 20893, "monthly": 13928.5, "gap": 20893, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 60, "recv_last_date": "2026/03/18", "buy_cost": 111.1, "est_cost": 2321212.0}, {"sku": "D00-008", "name": "食器皂(共用)   貼紙加工費*1", "stock": 0, "safety": 11314, "monthly": 7542.5, "gap": 11314, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 84, "recv_last_date": "2026/02/12", "buy_cost": 2.0, "est_cost": 22628.0}, {"sku": "E12-008", "name": "OPP袋包裝加工費*1", "stock": 0, "safety": 8130, "monthly": 5419.8, "gap": 8130, "alert": "out", "vendor": "易網通", "vid": "V0056", "lead_days": 0, "recv_last_date": "2026/04/02", "buy_cost": 1.5, "est_cost": 12195.0}, {"sku": "D02-001", "name": "食器皂 補充 內料*1", "stock": 0, "safety": 7516, "monthly": 5010.5, "gap": 7516, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 92, "recv_last_date": "2026/02/12", "buy_cost": 84.5, "est_cost": 635102.0}, {"sku": "E04-004", "name": "洗衣精 膠膜(壓頭版)*1", "stock": 0, "safety": 4214, "monthly": 2809.2, "gap": 4214, "alert": "out", "vendor": "大翰翔", "vid": "V0034", "lead_days": 0, "recv_last_date": "", "buy_cost": 2.5, "est_cost": 10535.0}, {"sku": "D01-002", "name": "食器皂 (壓) 瓶身*1", "stock": 0, "safety": 3804, "monthly": 2536.2, "gap": 3804, "alert": "out", "vendor": "翔安", "vid": "V0028", "lead_days": 52, "recv_last_date": "2025/12/29", "buy_cost": 9.0, "est_cost": 34236.0}, {"sku": "D01-001", "name": "食器皂 (壓) 內料*1", "stock": 0, "safety": 3798, "monthly": 2532.0, "gap": 3798, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 66, "recv_last_date": "2026/01/24", "buy_cost": 84.5, "est_cost": 320931.0}, {"sku": "E08-001", "name": "除黴凝膠 內料*1", "stock": 0, "safety": 3752, "monthly": 2501.5, "gap": 3752, "alert": "out", "vendor": "沛進", "vid": "V0040", "lead_days": 73, "recv_last_date": "2026/04/14", "buy_cost": 65.0, "est_cost": 243880.0}, {"sku": "E07-001", "name": "除垢慕斯(補充) 內料*1", "stock": 0, "safety": 3750, "monthly": 2500.0, "gap": 3750, "alert": "out", "vendor": "優捷", "vid": "V0057", "lead_days": 83, "recv_last_date": "2026/03/12", "buy_cost": 69.0, "est_cost": 258750.0}, {"sku": "J01-001", "name": "【升級版】(含氟)薄荷軟管 內料*1", "stock": 0, "safety": 3746, "monthly": 2497.0, "gap": 3746, "alert": "out", "vendor": "虹均生技", "vid": "V0007", "lead_days": 53, "recv_last_date": "2026/03/03", "buy_cost": 37.5, "est_cost": 140475.0}, {"sku": "E04-002", "name": "洗衣精(壓) 瓶身*1", "stock": 0, "safety": 3689, "monthly": 2459.2, "gap": 3689, "alert": "out", "vendor": "翔安", "vid": "V0028", "lead_days": 41, "recv_last_date": "2026/01/16", "buy_cost": 13.5, "est_cost": 49802.0}, {"sku": "E04-001", "name": "洗衣精(壓) 內料*1", "stock": 0, "safety": 3600, "monthly": 2400.0, "gap": 3600, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 44, "recv_last_date": "2026/01/28", "buy_cost": 111.1, "est_cost": 399960.0}, {"sku": "E02-001", "name": "家事皂 內料*1", "stock": 0, "safety": 3502, "monthly": 2334.5, "gap": 3502, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 0, "recv_last_date": "2026/04/13", "buy_cost": 110.4, "est_cost": 386621.0}, {"sku": "A01-001", "name": "(代工)剋菌液 100ML內料*1", "stock": 0, "safety": 3043, "monthly": 2028.5, "gap": 3043, "alert": "out", "vendor": "凱悅", "vid": "V0008", "lead_days": 61, "recv_last_date": "2026/03/12", "buy_cost": 17.5, "est_cost": 53252.0}, {"sku": "A01-006", "name": "剋菌液 100ml原液*1", "stock": 0, "safety": 3043, "monthly": 2028.5, "gap": 3043, "alert": "out", "vendor": "安喆", "vid": "V0055", "lead_days": 0, "recv_last_date": "2026/03/31", "buy_cost": 8.8, "est_cost": 26778.0}, {"sku": "E06-001", "name": "洗衣精 30ML 內料*1", "stock": 0, "safety": 2625, "monthly": 1750.2, "gap": 2625, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 49, "recv_last_date": "2026/03/30", "buy_cost": 14.9, "est_cost": 39112.0}, {"sku": "A02-001", "name": "(代工)剋菌液 300ML內料*1", "stock": 0, "safety": 1881, "monthly": 1254.0, "gap": 1881, "alert": "out", "vendor": "凱悅", "vid": "V0008", "lead_days": 69, "recv_last_date": "2026/03/06", "buy_cost": 21.6, "est_cost": 40630.0}, {"sku": "A02-006", "name": "剋菌液 300ml原液*1", "stock": 0, "safety": 1881, "monthly": 1254.0, "gap": 1881, "alert": "out", "vendor": "安喆", "vid": "V0055", "lead_days": 0, "recv_last_date": "2026/03/31", "buy_cost": 26.4, "est_cost": 49658.0}, {"sku": "D03-001", "name": "食器皂50ml 內料*1", "stock": 0, "safety": 1133, "monthly": 755.2, "gap": 1133, "alert": "out", "vendor": "生華隆", "vid": "V0005", "lead_days": 141, "recv_last_date": "2026/01/16", "buy_cost": 18.6, "est_cost": 21074.0}, {"sku": "4713233981409", "name": "淨淨-簡單柔濕巾(15抽×5包/串)", "stock": -78, "safety": 204, "monthly": 135.8, "gap": 282, "alert": "out", "vendor": "荷康", "vid": "V0025", "lead_days": 0, "recv_last_date": "", "buy_cost": 50.0, "est_cost": 14100.0}, {"sku": "4713233981454", "name": "淨淨-簡單柔濕巾(70抽×3包/串)", "stock": -3, "safety": 151, "monthly": 100.5, "gap": 154, "alert": "out", "vendor": "荷康", "vid": "V0025", "lead_days": 0, "recv_last_date": "", "buy_cost": 103.5, "est_cost": 15939.0}, {"sku": "balloon001", "name": "淨淨手持氣球", "stock": -79, "safety": 15, "monthly": 9.8, "gap": 94, "alert": "out", "vendor": "大陸廠商", "vid": "V0011", "lead_days": 0, "recv_last_date": "", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "4713233989641", "name": "淨淨皮革圓形捲尺", "stock": -16, "safety": 47, "monthly": 31.2, "gap": 63, "alert": "out", "vendor": "大陸廠商", "vid": "V0011", "lead_days": 0, "recv_last_date": "", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "K04-002", "name": "沐浴慕斯 療癒花語600ml 瓶身*1", "stock": 0, "safety": 57, "monthly": 37.8, "gap": 57, "alert": "out", "vendor": "翔安", "vid": "V0028", "lead_days": 67, "recv_last_date": "2025/11/03", "buy_cost": 17.7, "est_cost": 1009.0}, {"sku": "VIP0003", "name": "2025母親節花束", "stock": -2, "safety": 17, "monthly": 11.2, "gap": 19, "alert": "out", "vendor": "台灣廠商", "vid": "V0029", "lead_days": 0, "recv_last_date": "", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "K01-002", "name": "沐浴慕斯 純淨無香600ml 瓶身*1", "stock": 0, "safety": 15, "monthly": 10.2, "gap": 15, "alert": "out", "vendor": "翔安", "vid": "V0028", "lead_days": 67, "recv_last_date": "2025/11/03", "buy_cost": 17.7, "est_cost": 266.0}, {"sku": "4713233989467", "name": "彩虹希望之家公益小卡(5款)", "stock": 0, "safety": 8, "monthly": 5.2, "gap": 8, "alert": "out", "vendor": "柏朗克", "vid": "V0047", "lead_days": 0, "recv_last_date": "2025/07/23", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "E00-006", "name": "洗衣精(共用)  認證貼紙*1", "stock": 5036, "safety": 24493, "monthly": 16328.5, "gap": 19457, "alert": "critical", "vendor": "柏朗克", "vid": "V0047", "lead_days": 47, "recv_last_date": "2026/04/09", "buy_cost": 1.8, "est_cost": 35023.0}, {"sku": "E05-002", "name": "洗衣精(補) 瓶身*1", "stock": 4288, "safety": 21101, "monthly": 14067.5, "gap": 16813, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 70, "recv_last_date": "2026/04/09", "buy_cost": 13.5, "est_cost": 226976.0}, {"sku": "4713233981362", "name": "洗衣精補充瓶800ml", "stock": 861, "safety": 9490, "monthly": 6327.0, "gap": 8629, "alert": "critical", "vendor": "生華隆", "vid": "V0005", "lead_days": 0, "recv_last_date": "2026/02/04", "buy_cost": 154.48, "est_cost": 1333008.0}, {"sku": "D02-002", "name": "食器皂 (補)  瓶身*1", "stock": 100, "safety": 7528, "monthly": 5018.5, "gap": 7428, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 81, "recv_last_date": "2026/02/04", "buy_cost": 9.0, "est_cost": 66852.0}, {"sku": "E04-003", "name": "洗衣精 壓頭*1", "stock": 1890, "safety": 7986, "monthly": 5323.8, "gap": 6096, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 56, "recv_last_date": "2025/12/23", "buy_cost": 12.5, "est_cost": 76200.0}, {"sku": "D02-004", "name": "食器皂 (補)  瓶貼*1", "stock": 1922, "safety": 7528, "monthly": 5018.5, "gap": 5606, "alert": "critical", "vendor": "柏郎客", "vid": "V0012", "lead_days": 0, "recv_last_date": "", "buy_cost": 2.8, "est_cost": 15697.0}, {"sku": "D02-003", "name": "食器皂 (補)  蓋子*1", "stock": 2052, "safety": 7516, "monthly": 5010.5, "gap": 5464, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 81, "recv_last_date": "2026/02/04", "buy_cost": 2.4, "est_cost": 13114.0}, {"sku": "E07-002", "name": "除垢慕斯(補充) 瓶身*1", "stock": 30, "safety": 3753, "monthly": 2502.0, "gap": 3723, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 92, "recv_last_date": "2026/01/30", "buy_cost": 9.9, "est_cost": 36858.0}, {"sku": "E07-003", "name": "除垢慕斯(補充) 蓋子*1", "stock": 206, "safety": 3751, "monthly": 2500.5, "gap": 3545, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 92, "recv_last_date": "2026/01/30", "buy_cost": 2.0, "est_cost": 7090.0}, {"sku": "E07-004", "name": "除垢慕斯(補充) 瓶貼*1", "stock": 283, "safety": 3753, "monthly": 2502.0, "gap": 3470, "alert": "critical", "vendor": "柏朗克", "vid": "V0047", "lead_days": 45, "recv_last_date": "2026/01/28", "buy_cost": 4.2, "est_cost": 14574.0}, {"sku": "D01-003", "name": "食器皂 (壓) 壓頭*1", "stock": 363, "safety": 3798, "monthly": 2532.0, "gap": 3435, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 52, "recv_last_date": "2025/12/29", "buy_cost": 14.0, "est_cost": 48090.0}, {"sku": "000-002", "name": "50ml 瓶身+泡沫壓頭*1", "stock": 1252, "safety": 4128, "monthly": 2752.0, "gap": 2876, "alert": "critical", "vendor": "高精容器", "vid": "V0033", "lead_days": 43, "recv_last_date": "2026/04/10", "buy_cost": 13.0, "est_cost": 37388.0}, {"sku": "A01-002", "name": "剋菌液 100ml瓶身*1", "stock": 256, "safety": 3043, "monthly": 2028.5, "gap": 2787, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 26, "recv_last_date": "2025/12/08", "buy_cost": 4.0, "est_cost": 11148.0}, {"sku": "E01-003", "name": "除垢慕斯 噴頭*1", "stock": 1281, "safety": 3752, "monthly": 2501.5, "gap": 2471, "alert": "critical", "vendor": "翔安", "vid": "V0028", "lead_days": 54, "recv_last_date": "2026/02/26", "buy_cost": 8.8, "est_cost": 21745.0}, {"sku": "E06-004", "name": "洗衣精瓶貼(迷你瓶)*1", "stock": 167, "safety": 2625, "monthly": 1750.2, "gap": 2458, "alert": "critical", "vendor": "柏朗克", "vid": "V0047", "lead_days": 21, "recv_last_date": "2025/10/14", "buy_cost": 1.5, "est_cost": 3687.0}, {"sku": "4713233981300", "name": "除垢慕斯 500ML", "stock": 22, "safety": 1981, "monthly": 1320.8, "gap": 1959, "alert": "critical", "vendor": "生華隆", "vid": "V0005", "lead_days": 0, "recv_last_date": "2025/10/14", "buy_cost": 95.6, "est_cost": 187280.0}, {"sku": "4713233981317", "name": "除垢慕斯 500ML 補充瓶", "stock": 689, "safety": 2541, "monthly": 1694.2, "gap": 1852, "alert": "critical", "vendor": "生華隆", "vid": "V0005", "lead_days": 0, "recv_last_date": "2025/10/22", "buy_cost": 89.5, "est_cost": 165754.0}, {"sku": "K03-008", "name": "沐浴慕斯 日光棉花50ml 吊掛盒*1", "stock": 216, "safety": 1881, "monthly": 1254.0, "gap": 1665, "alert": "critical", "vendor": "柏朗克", "vid": "V0047", "lead_days": 22, "recv_last_date": "2026/01/13", "buy_cost": 5.0, "est_cost": 8325.0}, {"sku": "E06-003", "name": "洗衣精30ML蓋子*1", "stock": 998, "safety": 2634, "monthly": 1756.0, "gap": 1636, "alert": "critical", "vendor": "勝至", "vid": "V0003", "lead_days": 27, "recv_last_date": "2026/04/13", "buy_cost": 2.0, "est_cost": 3272.0}, {"sku": "E06-002", "name": "洗衣精30ML 瓶身*1", "stock": 998, "safety": 2626, "monthly": 1750.5, "gap": 1628, "alert": "critical", "vendor": "勝至", "vid": "V0003", "lead_days": 27, "recv_last_date": "2026/04/13", "buy_cost": 5.5, "est_cost": 8954.0}, {"sku": "A02-002", "name": "剋菌液300ml 瓶身+噴頭*1", "stock": 356, "safety": 1882, "monthly": 1254.5, "gap": 1526, "alert": "critical", "vendor": "有美", "vid": "V0001", "lead_days": 38, "recv_last_date": "2025/12/16", "buy_cost": 95.0, "est_cost": 144970.0}, {"sku": "4713233989757", "name": "2026馬年紅包袋", "stock": 14, "safety": 1137, "monthly": 757.8, "gap": 1123, "alert": "critical", "vendor": "柏朗克", "vid": "V0047", "lead_days": 42, "recv_last_date": "2026/01/19", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "4713233981416", "name": "淨淨-簡單柔濕巾(70抽×12包/箱)", "stock": 62, "safety": 441, "monthly": 294.2, "gap": 379, "alert": "critical", "vendor": "荷康", "vid": "V0025", "lead_days": 35, "recv_last_date": "2026/03/31", "buy_cost": 414.0, "est_cost": 156906.0}, {"sku": "4713233981393", "name": "淨淨-簡單柔濕巾(15抽)", "stock": 19, "safety": 69, "monthly": 45.8, "gap": 50, "alert": "critical", "vendor": "荷康", "vid": "V0025", "lead_days": 0, "recv_last_date": "", "buy_cost": 10.0, "est_cost": 500.0}, {"sku": "4713233989634", "name": "淨淨質感刺繡圍裙", "stock": 4, "safety": 13, "monthly": 8.8, "gap": 9, "alert": "critical", "vendor": "凱樂", "vid": "V0024", "lead_days": 0, "recv_last_date": "", "buy_cost": 0.0, "est_cost": 0.0}, {"sku": "4713233981355", "name": "洗衣精800ml", "stock": 4148, "safety": 7545, "monthly": 5030.0, "gap": 3397, "alert": "low", "vendor": "生華隆", "vid": "V0005", "lead_days": 0, "recv_last_date": "2026/01/28", "buy_cost": 165.48, "est_cost": 562136.0}, {"sku": "A01-003", "name": "剋菌液 100ml 噴頭*1", "stock": 1584, "safety": 3043, "monthly": 2028.5, "gap": 1459, "alert": "low", "vendor": "有美", "vid": "V0001", "lead_days": 28, "recv_last_date": "2025/12/16", "buy_cost": 6.8, "est_cost": 9921.0}, {"sku": "K01-005", "name": "沐浴慕斯 純淨無香600ml 紙盒*1", "stock": 764, "safety": 865, "monthly": 576.8, "gap": 101, "alert": "low", "vendor": "柏朗克", "vid": "V0047", "lead_days": 16, "recv_last_date": "2025/11/01", "buy_cost": 18.0, "est_cost": 1818.0}];
+// <!--REORDER_DATA_END-->
+// <!--DEMANDGAP_DATA_START-->
+var _demandGapData = [{"sku": "4713233982253", "name": "食器清潔皂50ml", "demand_qty": 2510, "stock": 1810, "shortfall": 700, "events": ["天母SOGO 檔期贈品", "禾馨 參觀禮+入住禮", "享餵 第二批", "台北寵物展 6/12-6/15", "享餵 第三批"], "enough": false}, {"sku": "4713233981393", "name": "淨淨-簡單柔濕巾(15抽)", "demand_qty": 270, "stock": 19, "shortfall": 251, "events": ["享餵 第二批", "享餵 第三批", "享餵 第四批"], "enough": false}, {"sku": "4713233989719", "name": "淨淨手提開窗盥洗包", "demand_qty": 2050, "stock": 2284, "shortfall": 0, "events": ["捷安特 第二批", "捷安特 第三批", "捷安特 第四批", "捷安特 第一批", "超級數字力 第二批"], "enough": true}, {"sku": "4713233986664", "name": "剋菌液100ml", "demand_qty": 1510, "stock": 7327, "shortfall": 0, "events": ["高雄寵物展 5/1-5/4", "禾馨 參觀禮+入住禮", "享餵 第二批", "享餵 第三批", "享餵 第四批"], "enough": true}, {"sku": "4713233981379", "name": "洗衣精隨身瓶30ml", "demand_qty": 1400, "stock": 5457, "shortfall": 0, "events": ["捷安特 第二批", "捷安特 第三批", "捷安特 第四批", "捷安特 第一批", "禾馨 參觀禮+入住禮"], "enough": true}, {"sku": "4713233984691", "name": "沐浴露(棉花)30ml", "demand_qty": 1340, "stock": 5402, "shortfall": 0, "events": ["捷安特 第二批", "捷安特 第三批", "捷安特 第四批", "捷安特 第一批", "超級數字力 第二批"], "enough": true}, {"sku": "4713233981355", "name": "洗衣精800ml", "demand_qty": 800, "stock": 4148, "shortfall": 0, "events": ["高雄婦幼展 5/1-5/4", "台北婦幼展 7/10-7/13"], "enough": true}, {"sku": "4713233984530", "name": "潔顏慕斯30ml", "demand_qty": 540, "stock": 2792, "shortfall": 0, "events": ["超級數字力 第二批", "超級數字力 第三批", "超級數字力 第四批", "超級數字力 第五批"], "enough": true}, {"sku": "4713233984714", "name": "【升級版】胺基酸多效牙膏-清涼薄荷20g", "demand_qty": 540, "stock": 2000, "shortfall": 0, "events": ["超級數字力 第二批", "超級數字力 第三批", "超級數字力 第四批", "超級數字力 第五批"], "enough": true}, {"sku": "4713233984653", "name": "沐浴慕斯(棉花)50ml", "demand_qty": 440, "stock": 3667, "shortfall": 0, "events": ["禾馨 參觀禮+入住禮"], "enough": true}, {"sku": "4713233984646", "name": "沐浴慕斯(花香)600ml", "demand_qty": 400, "stock": 5502, "shortfall": 0, "events": ["台中婦幼展 6/19-6/22"], "enough": true}, {"sku": "4713233984660", "name": "沐浴慕斯(花香)50ml", "demand_qty": 270, "stock": 2909, "shortfall": 0, "events": ["享餵 第二批", "享餵 第三批", "享餵 第四批"], "enough": true}, {"sku": "4713233981423", "name": "淨淨-簡單柔濕巾(15抽×40包/箱)", "demand_qty": 39, "stock": 359, "shortfall": 0, "events": ["超級數字力 第二批", "禾馨 參觀禮+入住禮", "超級數字力 第三批", "超級數字力 第四批", "超級數字力 第五批"], "enough": true}];
+// <!--DEMANDGAP_DATA_END-->
 
+function renderReorder(){
+  var data=_reorderData;
+  if(!data.length){document.getElementById('ro-tbody').innerHTML='<tr><td colspan="11" style="text-align:center;color:#94A3B8;padding:24px">無建議下單品項（庫存充足）</td></tr>';return;}
+  var outN=0,critN=0,lowN=0,totalCost=0;
+  var vendors={};
+  data.forEach(function(r){
+    if(r.alert==='out')outN++;else if(r.alert==='critical')critN++;else lowN++;
+    totalCost+=r.est_cost||0;
+    if(r.vendor&&!vendors[r.vendor])vendors[r.vendor]=true;
+  });
+  var cards=document.getElementById('reorder-cards');
+  cards.innerHTML='<div style="display:flex;align-items:center;gap:8px;background:#FEF2F2;padding:8px 16px;border-radius:10px;border-left:3px solid #B91C1C"><span style="font-weight:700;color:#B91C1C;font-size:18px">'+outN+'</span><span style="font-size:12px;color:#64748B">缺貨</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#FEF3C7;padding:8px 16px;border-radius:10px;border-left:3px solid #B45309"><span style="font-weight:700;color:#B45309;font-size:18px">'+critN+'</span><span style="font-size:12px;color:#64748B">緊急</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#DBEAFE;padding:8px 16px;border-radius:10px;border-left:3px solid #2563EB"><span style="font-weight:700;color:#2563EB;font-size:18px">'+lowN+'</span><span style="font-size:12px;color:#64748B">偏低</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;padding:8px 16px;border-radius:10px;border-left:3px solid #16A34A"><span style="font-weight:700;color:#16A34A;font-size:16px">$'+Math.round(totalCost).toLocaleString()+'</span><span style="font-size:12px;color:#64748B">預估採購額</span></div>';
+  // populate vendor filter
+  var vsel=document.getElementById('ro-v');
+  var vkeys=Object.keys(vendors).sort();
+  vsel.innerHTML='<option value="all">全部廠商</option>';
+  vkeys.forEach(function(v){vsel.innerHTML+='<option value="'+v+'">'+v+'</option>';});
+  renderReorderRows(data);
+}
+function renderReorderRows(data){
+  var s=(document.getElementById('ro-s').value||'').toLowerCase();
+  var f=document.getElementById('ro-f').value;
+  var v=document.getElementById('ro-v').value;
+  var html='',n=0;
+  var alertLabel={'out':'<span style="background:#FEE2E2;color:#B91C1C;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">🚨 缺貨</span>','critical':'<span style="background:#FEF3C7;color:#B45309;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">⚠ 緊急</span>','low':'<span style="background:#DBEAFE;color:#1D4ED8;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">📉 偏低</span>'};
+  var alertCls={'out':'u-critical','critical':'u-medium','low':''};
+  data.forEach(function(r){
+    if(f!=='all'&&r.alert!==f)return;
+    if(v!=='all'&&r.vendor!==v)return;
+    var txt=(r.name+' '+r.vendor+' '+r.sku).toLowerCase();
+    if(s&&txt.indexOf(s)<0)return;
+    n++;
+    html+='<tr class="'+(alertCls[r.alert]||'')+'">'
+      +'<td class="nowrap">'+(alertLabel[r.alert]||'')+'</td>'
+      +'<td style="max-width:220px">'+r.name+'<div style="font-size:10px;color:#94A3B8">'+r.sku+'</div></td>'
+      +'<td class="nowrap">'+r.vendor+'</td>'
+      +'<td class="num">'+r.stock.toLocaleString()+'</td>'
+      +'<td class="num">'+r.safety.toLocaleString()+'</td>'
+      +'<td class="num" style="font-weight:700;color:#B91C1C">'+r.gap.toLocaleString()+'</td>'
+      +'<td class="num">'+Math.round(r.monthly).toLocaleString()+'</td>'
+      +'<td class="num">'+(r.lead_days||'—')+'</td>'
+      +'<td class="num">$'+(r.buy_cost||0).toLocaleString()+'</td>'
+      +'<td class="num" style="font-weight:600">$'+Math.round(r.est_cost||0).toLocaleString()+'</td>'
+      +'<td class="nowrap" style="font-size:12px;color:#64748B">'+(r.recv_last_date||'—')+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('ro-tbody').innerHTML=html||'<tr><td colspan="11" style="text-align:center;color:#94A3B8;padding:24px">無符合條件的品項</td></tr>';
+  document.getElementById('ro-c').textContent='顯示 '+n+'/'+data.length+' 筆';
+}
+function filterReorder(){renderReorderRows(_reorderData);}
+
+function renderDemandGap(){
+  var data=_demandGapData;
+  if(!data.length){document.getElementById('dg-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;color:#94A3B8;padding:24px">無需求缺口資料（尚未同步或無活動需求）</td></tr>';return;}
+  var shortN=0,okN=0,totalDemand=0,totalShort=0;
+  data.forEach(function(g){
+    if(!g.enough)shortN++;else okN++;
+    totalDemand+=g.demand_qty;totalShort+=g.shortfall;
+  });
+  var cards=document.getElementById('dg-cards');
+  cards.innerHTML='<div style="display:flex;align-items:center;gap:8px;background:#FEF2F2;padding:8px 16px;border-radius:10px;border-left:3px solid #B91C1C"><span style="font-weight:700;color:#B91C1C;font-size:18px">'+shortN+'</span><span style="font-size:12px;color:#64748B">品項不足</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;padding:8px 16px;border-radius:10px;border-left:3px solid #16A34A"><span style="font-weight:700;color:#16A34A;font-size:18px">'+okN+'</span><span style="font-size:12px;color:#64748B">庫存充足</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#FFF7ED;padding:8px 16px;border-radius:10px;border-left:3px solid #EA580C"><span style="font-weight:700;color:#EA580C;font-size:18px">'+totalDemand.toLocaleString()+'</span><span style="font-size:12px;color:#64748B">總需求量</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;background:#FEF2F2;padding:8px 16px;border-radius:10px;border-left:3px solid #DC2626"><span style="font-weight:700;color:#DC2626;font-size:18px">'+totalShort.toLocaleString()+'</span><span style="font-size:12px;color:#64748B">總缺口</span></div>';
+  var html='';
+  data.forEach(function(g){
+    var cls=g.enough?'':'u-critical';
+    var badge=g.enough?'<span style="background:#D1FAE5;color:#065F46;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">✅ 充足</span>':'<span style="background:#FEE2E2;color:#B91C1C;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700">🚨 不足</span>';
+    var evtHtml=g.events.map(function(e){return '<span style="background:#F1F5F9;color:#475569;padding:1px 6px;border-radius:6px;font-size:11px;margin:1px 2px;display:inline-block">'+e+'</span>';}).join('');
+    html+='<tr class="'+cls+'">'
+      +'<td class="nowrap">'+badge+'</td>'
+      +'<td>'+g.name+'<div style="font-size:10px;color:#94A3B8">'+g.sku+'</div></td>'
+      +'<td class="num">'+g.demand_qty.toLocaleString()+'</td>'
+      +'<td class="num">'+g.stock.toLocaleString()+'</td>'
+      +'<td class="num" style="font-weight:700;'+(g.shortfall>0?'color:#B91C1C':'color:#065F46')+'">'+g.shortfall.toLocaleString()+'</td>'
+      +'<td style="max-width:300px">'+evtHtml+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('dg-tbody').innerHTML=html;
+}
+window.addEventListener('load',function(){renderReorder();renderDemandGap();});
 
 </script>
 <script>
