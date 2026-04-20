@@ -1770,7 +1770,8 @@ function renderItCloseStatus(){
   t.querySelectorAll('tbody tr').forEach(function(r){
     var key = r.getAttribute('data-itkey');
     if(!key) return;
-    var statusCell = r.querySelector('td:last-child');
+    var cells = r.querySelectorAll('td');
+    var statusCell = cells[cells.length - 2]; // 倒數第二欄 = 到貨狀態
     var btn = r.querySelector('.it-close-btn');
     if(items[key]){
       // 已結案
