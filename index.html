@@ -1956,6 +1956,50 @@ function promptPrStatus(reqId, currentStatus){
 // 向後相容舊函數名
 function cyclePrStatus(reqId, status){ promptPrStatus(reqId, status); }
 
+// ===== 公關活動追蹤 靜態表：狀態 badge 可點選切換（localStorage）=====
+var PR_ACT_KEY = 'pr_activity_status';
+function getPrActStatus(){ try{ return JSON.parse(localStorage.getItem(PR_ACT_KEY)||'{}'); }catch(e){ return {}; } }
+function savePrActStatus(d){ try{ localStorage.setItem(PR_ACT_KEY, JSON.stringify(d)); }catch(e){} }
+function updatePrActivityStatus(key, cur){
+  var options = ['安排中','已出貨','已退回','已取消'];
+  var opts = options.map(function(s,i){ return (i+1)+'. '+s; }).join('\n');
+  var ans = prompt('更新公關活動狀態\n活動: '+key.split('|')[0]+'\n目前: '+cur+'\n\n選擇新狀態：\n'+opts);
+  if(!ans) return;
+  var idx = parseInt(ans)-1;
+  if(idx < 0 || idx >= options.length){ alert('選項錯誤'); return; }
+  var newSt = options[idx];
+  var d = getPrActStatus();
+  d[key] = newSt;
+  savePrActStatus(d);
+  renderPrActivityStatus();
+}
+function renderPrActivityStatus(){
+  var d = getPrActStatus();
+  var colorMap = {'已出貨':'#27AE60','安排中':'#E67E22','已退回':'#E8453C','已取消':'#94A3B8'};
+  document.querySelectorAll('#tab-pr tbody tr').forEach(function(r, i){
+    var tds = r.querySelectorAll('td');
+    if(tds.length < 2) return;
+    var actName = tds[1].textContent.trim();
+    var tmsNo = tds.length > 6 ? tds[6].textContent.trim() : '';
+    var key = actName + '|' + tmsNo;
+    var origStatus = r.getAttribute('data-status') || '';
+    var curStatus = d[key] || origStatus;
+    var color = colorMap[curStatus] || '#94A3B8';
+    // 把第一格改成可點擊的 button
+    tds[0].innerHTML = '<button onclick="updatePrActivityStatus(\''+key.replace(/\'/g,"\\'")+'\',\''+curStatus+'\')" '
+      + 'style="background:'+color+';color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;white-space:nowrap" '
+      + 'title="點擊更新狀態">'+curStatus+' ▾</button>';
+    r.setAttribute('data-status', curStatus);
+    // 整列樣式（已完成類狀態變半透明）
+    if(curStatus === '已出貨' || curStatus === '已取消' || curStatus === '已退回'){
+      r.style.opacity = '0.6';
+    } else {
+      r.style.opacity = '';
+    }
+  });
+}
+window.addEventListener('load', function(){ setTimeout(renderPrActivityStatus, 700); });
+
 // ===== 月進貨對帳：月份切換 + 狀態管理 =====
 var RM_STATUS_KEY = 'rm_recon_status';
 var _rmFilterMode = ''; // '' | 'uncheck' | 'unpay'
