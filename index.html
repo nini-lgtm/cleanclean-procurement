@@ -2202,7 +2202,57 @@ function toggleItHideClosed(){
     }
   });
 }
-window.addEventListener('load', function(){ setTimeout(renderItCloseStatus, 200); });
+window.addEventListener('load', function(){ setTimeout(renderItCloseStatus, 200); setTimeout(recomputeMatIntransit, 600); });
+
+// ===== 物料急補 在途重算：把「已結案」的 PO 從在途扣除 =====
+function recomputeMatIntransit(){
+  if(typeof POHIST === 'undefined' || !POHIST) return;
+  var closed = getClosedItems();
+  var realBySku = {};
+  POHIST.forEach(function(p){
+    if(p.status === '已到齊') return;
+    var key = p.po_no + '_' + p.sku;
+    if(closed[key]) return;
+    realBySku[p.sku] = (realBySku[p.sku] || 0) + (p.qty - p.done);
+  });
+  var t = document.getElementById('mt-t');
+  if(!t) return;
+  var adjN = 0;
+  t.querySelectorAll('tbody tr').forEach(function(row){
+    var cells = row.querySelectorAll('td');
+    if(cells.length < 12) return;
+    // 欄位: 急迫度(0) 代號(1) 名稱(2) 廠商(3) 在庫(4) 在途(5) 有效庫存(6) 日均需求(7) 可用天(8) 安全庫存(9) 建議下單(10) 預估金額(11) 最晚下單(12)
+    var sku = cells[1].textContent.trim();
+    var oldIntrans = parseInt(cells[5].textContent.replace(/,/g,''))||0;
+    var newIntrans = realBySku[sku] || 0;
+    if(newIntrans === oldIntrans) return;
+    adjN++;
+    cells[5].textContent = newIntrans.toLocaleString();
+    var stock = parseInt(cells[4].textContent.replace(/,/g,''))||0;
+    var newEff = stock + newIntrans;
+    cells[6].innerHTML = '<b>'+newEff.toLocaleString()+'</b>';
+    var daily = parseFloat(cells[7].textContent)||0;
+    cells[8].textContent = daily > 0 ? Math.round(newEff/daily).toLocaleString() : '∞';
+    var safety = parseInt(cells[9].textContent.replace(/,/g,''))||0;
+    var newSugg = Math.max(safety*2 - newEff, 0);
+    cells[10].innerHTML = '<b>'+newSugg.toLocaleString()+'</b>';
+    row.setAttribute('title','⚠ 此列在途已因結案調整，預估金額/急迫度建議隔日排程重新整理');
+    row.style.background = '#FFFBEB';
+  });
+  if(adjN > 0){
+    var sub = document.querySelector('#tab-mat .subtitle');
+    if(sub) sub.innerHTML = '物料庫存與在途狀況，優先處理高急迫度 <span style="color:#B45309;font-weight:600">（已根據在途結案調整 '+adjN+' 筆）</span>';
+  }
+}
+
+// 結案切換時自動重算物料急補
+if(typeof toggleItClose === 'function'){
+  var _origToggleClose = toggleItClose;
+  toggleItClose = function(key){
+    _origToggleClose(key);
+    setTimeout(recomputeMatIntransit, 100);
+  };
+}
 
 function filterFgPending(){
   const btn = document.getElementById('fg-pending-btn');
