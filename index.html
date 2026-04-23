@@ -172,7 +172,13 @@ tr.u-critical{background:var(--red-bg)}tr.u-critical:hover{background:var(--red-
 
     <!-- Activity Tracking Table -->
     <div style="background: #fff; padding: 24px; border-radius: 12px; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.05);">
-      <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1E293B;">公關活動追蹤</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <h3 style="font-size: 16px; font-weight: 600; margin: 0; color: #1E293B;">公關活動追蹤</h3>
+        <button onclick="promptPrStatus(prompt('請輸入申請編號（例如 REQ-20260421-001）：')||'', '')"
+                style="padding:8px 14px;background:#8B5CF6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          🔄 更新狀態（倉庫確認／主管審核／已出貨…）
+        </button>
+      </div>
       <div class="filter-bar">
         <input type="text" id="pr-s" placeholder="搜尋活動名稱、負責人…" oninput="filterPR()" style="flex: 1; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 14px;">
         <select id="pr-f" onchange="filterPR()" style="padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin: 0 12px;">
@@ -1831,27 +1837,41 @@ function ignoreButtonHtml(sku, name){
     + 'title="'+(ignored?'取消忽略':'加入忽略（停售/加工費等）')+'">'+(ignored?'↩':'👁')+'</button>';
 }
 
-// ===== PR 公關品狀態快速切換 =====
-function cyclePrStatus(evtId, currentStatus){
-  var cycle = ['安排中','已出貨','已退回','已取消','安排中'];
-  var idx = cycle.indexOf(currentStatus);
-  var next = cycle[(idx<0 ? 0 : idx+1) % (cycle.length-1)];
-  if(!confirm('此活動狀態：\n目前：'+currentStatus+'\n改為：'+next+'\n\n確定更新？（會同步至 Google Sheet）')) return;
-  // 寫回 Google Sheet (透過 Apps Script API)
-  var body = JSON.stringify({action:'updatePRStatus', id: evtId, status: next});
+// ===== PR 公關品狀態快速切換 (對接 Google Apps Script updateStatus) =====
+// 狀態流程: 待審核 → 倉庫已確認 → 主管已審核 → 待出貨 → 已出貨 → 已完成 (或 已退回)
+var PR_STATUS_STEPS = [
+  {step:'warehouse',    label:'倉庫已確認', icon:'📦'},
+  {step:'manager',      label:'主管已審核', icon:'👔'},
+  {step:'pending_ship', label:'待出貨',     icon:'⏳'},
+  {step:'shipped',      label:'已出貨',     icon:'🚚'},
+  {step:'complete',     label:'已完成',     icon:'✅'},
+];
+function promptPrStatus(reqId, currentStatus){
+  var opts = PR_STATUS_STEPS.map(function(s,i){ return (i+1)+'. '+s.icon+' '+s.label; }).join('\n');
+  var ans = prompt('更新公關品狀態\n申請編號: '+reqId+'\n目前: '+(currentStatus||'—')+'\n\n輸入數字：\n'+opts+'\n\n或 R=退回 / 0=取消');
+  if(!ans || ans.trim()==='' || ans==='0') return;
+  var step, extra = {};
+  if(ans.toLowerCase()==='r'){
+    step = 'reject';
+    extra.reason = prompt('退回原因：') || '';
+  } else {
+    var idx = parseInt(ans) - 1;
+    if(idx < 0 || idx >= PR_STATUS_STEPS.length){ alert('選項錯誤'); return; }
+    step = PR_STATUS_STEPS[idx].step;
+    if(['warehouse','manager'].indexOf(step) >= 0){
+      extra.confirmer = prompt('確認人員姓名（可空）：') || '';
+    }
+  }
+  var body = JSON.stringify(Object.assign({action:'updateStatus', reqId: reqId, step: step}, extra));
   fetch(DM_APPS_SCRIPT_URL, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body: body})
     .then(function(){
-      alert('✅ 已送出更新，重新整理後將反映');
-      // 本地立即更新 UI
-      var badge = document.querySelector('[data-pr-id="'+evtId+'"] .pr-status-badge');
-      if(badge){ badge.textContent = next; }
-      // 更新本地快取
-      var cache = _loadPRCache();
-      var idx2 = cache.findIndex(function(x){ return x.id === evtId || x['申請編號'] === evtId; });
-      if(idx2 >= 0){ cache[idx2]['狀態'] = next; _savePRCache(cache); }
+      alert('✅ 已送出更新，3 秒後自動同步新狀態');
+      setTimeout(function(){ if(typeof syncDemands === 'function') syncDemands(); }, 3000);
     })
     .catch(function(e){ alert('⚠️ 更新失敗：'+e); });
 }
+// 向後相容舊函數名
+function cyclePrStatus(reqId, status){ promptPrStatus(reqId, status); }
 
 // ===== 月進貨對帳：月份切換 + 狀態管理 =====
 var RM_STATUS_KEY = 'rm_recon_status';
@@ -2137,7 +2157,7 @@ function syncDemands(){var dot=document.getElementById('dm-sync-dot');if(dot){do
 function addDemand(){var name=document.getElementById('dm-name').value.trim();var month=document.getElementById('dm-month').value;var type=document.getElementById('dm-type').value;var cat=document.getElementById('dm-cat').value;var sku=document.getElementById('dm-sku').value.trim();var pname=document.getElementById('dm-pname').value.trim();var qty=parseInt(document.getElementById('dm-qty-input').value)||0;var pri=document.getElementById('dm-pri').value;var note=document.getElementById('dm-note').value.trim();if(!name){alert('請輸入事件名稱');return;}if(!month){alert('請選擇需求月份');return;}var item={id:Date.now(),name:name,month:month,type:type,cat:cat,sku:sku,pname:pname,qty:qty,pri:pri,note:note,status:'待採購',created:new Date().toLocaleDateString('zh-TW')};var list=getDemands();list.push(item);saveDemands(list);document.getElementById('dm-name').value='';document.getElementById('dm-sku').value='';document.getElementById('dm-pname').value='';document.getElementById('dm-qty-input').value='';document.getElementById('dm-note').value='';renderDemandTable();fetch(DM_APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({action:'addDemand'},item))}).catch(function(e){console.warn('寫入雲端失敗:',e);});}
 function removeDemand(id){if(!confirm('確定刪除此筆預登？'))return;var list=getDemands().filter(function(d){return d.id!==id;});saveDemands(list);renderDemandTable();fetch(DM_APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'removeDemand',id:id})}).catch(function(e){console.warn('刪除雲端失敗:',e);});}
 setTimeout(syncDemands,800);
-function renderDemandTable(){var list=getDemands();var filter=document.getElementById('dm-filter').value;var now=new Date();var tbody=document.getElementById('dm-tbody');var html='';var shown=0;var totalQty=0;var upcoming=0;list.sort(function(a,b){return a.month>b.month?1:a.month<b.month?-1:0;});var priMap={'高':'🔴','中':'🟡','低':'🟢'};var priCls={'高':'u-critical','中':'u-warning','低':'u-success'};list.forEach(function(d){var mDate=new Date(d.month+'-01');var diffDays=Math.floor((mDate-now)/(1000*60*60*24));var isUpcoming=diffDays>=-30&&diffDays<=60;var isPast=diffDays<-30;if(filter==='upcoming'&&!isUpcoming)return;if(filter!=='all'&&filter!=='upcoming'&&d.type!==filter)return;shown++;totalQty+=d.qty||0;if(diffDays>=0&&diffDays<=30)upcoming++;var timeTag='';if(isPast){timeTag='<span style="background:#F1F5F9;color:#94A3B8;padding:1px 6px;border-radius:6px;font-size:10px">已過</span>';}else if(diffDays<=30){timeTag='<span style="background:#FEF2F2;color:#B91C1C;padding:1px 6px;border-radius:6px;font-size:10px">即將到來</span>';}else if(diffDays<=60){timeTag='<span style="background:#FEF3CD;color:#92400E;padding:1px 6px;border-radius:6px;font-size:10px">準備中</span>';}html+='<tr class="'+(priCls[d.pri]||'')+'"><td class="nowrap">'+priMap[d.pri]+' '+d.pri+'</td><td class="nowrap">'+d.month.replace('-','/')+' '+timeTag+'</td><td><b>'+d.name+'</b></td><td>'+d.type+'</td><td>'+d.cat+'</td><td style="font-size:11px;color:#64748B">'+(d.sku||'—')+'</td><td>'+(d.pname||'—')+'</td><td class="num">'+(d.qty?d.qty.toLocaleString()+'件':'—')+'</td><td style="font-size:12px;color:#64748B">'+d.note+'</td><td style="font-size:11px;color:#94A3B8">'+d.created+'</td><td>'+(d.source==='PR'?'<span style="background:#E0F2FE;color:#0369A1;padding:2px 6px;border-radius:6px;font-size:10px">🎁 公關品</span>':'<button onclick="removeDemand('+d.id+')" style="background:none;border:1px solid #FECACA;color:#E8453C;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer">刪除</button>')+'</td></tr>';});tbody.innerHTML=html||'<tr><td colspan="11" style="text-align:center;color:#94A3B8;padding:24px">尚無預登事件，點擊上方「＋ 新增」開始登記</td></tr>';document.getElementById('dm-count').textContent='顯示 '+shown+' 筆';document.getElementById('dm-total').textContent=list.length;document.getElementById('dm-upcoming').textContent=upcoming;document.getElementById('dm-qty').textContent=totalQty.toLocaleString();}
+function renderDemandTable(){var list=getDemands();var filter=document.getElementById('dm-filter').value;var now=new Date();var tbody=document.getElementById('dm-tbody');var html='';var shown=0;var totalQty=0;var upcoming=0;list.sort(function(a,b){return a.month>b.month?1:a.month<b.month?-1:0;});var priMap={'高':'🔴','中':'🟡','低':'🟢'};var priCls={'高':'u-critical','中':'u-warning','低':'u-success'};list.forEach(function(d){var mDate=new Date(d.month+'-01');var diffDays=Math.floor((mDate-now)/(1000*60*60*24));var isUpcoming=diffDays>=-30&&diffDays<=60;var isPast=diffDays<-30;if(filter==='upcoming'&&!isUpcoming)return;if(filter!=='all'&&filter!=='upcoming'&&d.type!==filter)return;shown++;totalQty+=d.qty||0;if(diffDays>=0&&diffDays<=30)upcoming++;var timeTag='';if(isPast){timeTag='<span style="background:#F1F5F9;color:#94A3B8;padding:1px 6px;border-radius:6px;font-size:10px">已過</span>';}else if(diffDays<=30){timeTag='<span style="background:#FEF2F2;color:#B91C1C;padding:1px 6px;border-radius:6px;font-size:10px">即將到來</span>';}else if(diffDays<=60){timeTag='<span style="background:#FEF3CD;color:#92400E;padding:1px 6px;border-radius:6px;font-size:10px">準備中</span>';}html+='<tr class="'+(priCls[d.pri]||'')+'"><td class="nowrap">'+priMap[d.pri]+' '+d.pri+'</td><td class="nowrap">'+d.month.replace('-','/')+' '+timeTag+'</td><td><b>'+d.name+'</b></td><td>'+d.type+'</td><td>'+d.cat+'</td><td style="font-size:11px;color:#64748B">'+(d.sku||'—')+'</td><td>'+(d.pname||'—')+'</td><td class="num">'+(d.qty?d.qty.toLocaleString()+'件':'—')+'</td><td style="font-size:12px;color:#64748B">'+d.note+'</td><td style="font-size:11px;color:#94A3B8">'+d.created+'</td><td>'+(d.source==='PR'?'<div style="display:flex;gap:4px;flex-direction:column"><span style="background:#E0F2FE;color:#0369A1;padding:2px 6px;border-radius:6px;font-size:10px;text-align:center">🎁 '+(d.status||'公關品')+'</span><button onclick="promptPrStatus(\''+d.id+'\',\''+(d.status||'')+'\')" style="background:#EDE9FE;color:#5B21B6;border:1px solid #DDD6FE;border-radius:6px;padding:2px 6px;font-size:10px;cursor:pointer">🔄 更新狀態</button></div>':'<button onclick="removeDemand('+d.id+')" style="background:none;border:1px solid #FECACA;color:#E8453C;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer">刪除</button>')+'</td></tr>';});tbody.innerHTML=html||'<tr><td colspan="11" style="text-align:center;color:#94A3B8;padding:24px">尚無預登事件，點擊上方「＋ 新增」開始登記</td></tr>';document.getElementById('dm-count').textContent='顯示 '+shown+' 筆';document.getElementById('dm-total').textContent=list.length;document.getElementById('dm-upcoming').textContent=upcoming;document.getElementById('dm-qty').textContent=totalQty.toLocaleString();}
 
 function initPRDemands(){/* 已改由 syncDemands() 從雲端抓 公關品申請 sheet，不再硬編 */}
 /* 原有 65 筆 PR 硬編資料 removed — 已 migrate 至 Google Sheet 採購需求，現由 getDemands 雲端同步
