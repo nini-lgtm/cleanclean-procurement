@@ -2538,23 +2538,27 @@ function filterFgPending(){
   if(!t) return;
   const tbody = t.querySelector('tbody');
   if(!tbody) return;
-  // 先移除之前插入的分類標題行
+  // 第一次呼叫時，先記錄原始順序（含 BOM rows）
+  if(!window._fgOriginalOrder){
+    window._fgOriginalOrder = Array.from(tbody.querySelectorAll('tr'));
+  }
+  // 移除之前插入的分類標題列
   tbody.querySelectorAll('tr.fg-cat-header').forEach(r => r.remove());
+  // 顯示/隱藏 rows
   let n=0;
-  const allRows = Array.from(tbody.querySelectorAll('tr'));
+  const allRows = window._fgOriginalOrder;
   allRows.forEach(r=>{
-    if(r.classList.contains('bom-row')) return;  // BOM 子件先不處理
+    if(r.classList.contains('bom-row')) return;
     const code = r.getAttribute('data-code');
     const s = code?(states[code]||{}).status||'pending':'pending';
     const show = !isActive || s==='pending';
     r.style.display = show?'':'none';
-    if(show && !r.classList.contains('bom-row')) n++;
+    if(show) n++;
   });
-  // 待安排模式 → 依分類分組 + 插入分類標題列
   if(isActive){
+    // 待安排模式 → 依分類分組 + 插入分類標題列
     const CAT_ICONS = {"居家清潔":"🏠","肌膚滋養":"🛁","口腔呵護":"🦷","潔顏系列":"🌿","濕紙巾":"🧻","精油":"🌸","刮鬍刀":"🪒","紙箱":"📦","成品":"🎁","贈品":"🎁","共用物料":"🔧","物料":"🧱","其他":"📦"};
     const CAT_ORDER = ["居家清潔","肌膚滋養","口腔呵護","潔顏系列","濕紙巾","精油","刮鬍刀","紙箱","成品","贈品","共用物料","物料","其他"];
-    // 收集每個 category 下的可見 rows
     const byCat = {};
     allRows.forEach(r=>{
       if(r.style.display==='none' || r.classList.contains('bom-row')) return;
@@ -2562,11 +2566,8 @@ function filterFgPending(){
       if(!byCat[cat]) byCat[cat] = [];
       byCat[cat].push(r);
     });
-    // 重排：按 CAT_ORDER → 各 cat 內按原本順序
     const orderedCats = CAT_ORDER.filter(c => byCat[c]).concat(Object.keys(byCat).filter(c => CAT_ORDER.indexOf(c) < 0));
-    // 計算 thead 欄位數量決定 colspan
     const colCount = t.querySelectorAll('thead th').length || 13;
-    // 重新插入分組（先全 detach 待移動 rows，然後依組別 append + header）
     orderedCats.forEach(cat=>{
       const items = byCat[cat];
       if(!items.length) return;
@@ -2579,6 +2580,9 @@ function filterFgPending(){
       tbody.appendChild(header);
       items.forEach(r => tbody.appendChild(r));
     });
+  } else {
+    // 全部顯示模式 → 還原原始順序
+    window._fgOriginalOrder.forEach(r => tbody.appendChild(r));
   }
   const c = document.getElementById('fg-c');
   if(c) c.textContent = '顯示'+n+'/'+ allRows.filter(r=>!r.classList.contains('bom-row')).length +'筆';
