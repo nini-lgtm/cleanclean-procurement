@@ -2578,7 +2578,14 @@ function filterFgPending(){
       header.innerHTML = '<td colspan="'+colCount+'" style="padding:8px 12px;font-weight:700;color:#0F766E;border-top:2px solid #5ECECE">'
                       + icon+' '+cat+' <span style="font-weight:normal;color:#64748B;font-size:12px">('+items.length+'品項)</span></td>';
       tbody.appendChild(header);
-      items.forEach(r => tbody.appendChild(r));
+      items.forEach(r => {
+        tbody.appendChild(r);
+        // BOM 子件行（class="bom-{code}"）跟著父列一起移動
+        const code = r.getAttribute('data-code');
+        if(code){
+          tbody.querySelectorAll('tr.bom-'+code).forEach(child => tbody.appendChild(child));
+        }
+      });
     });
   } else {
     // 全部顯示模式 → 還原原始順序
